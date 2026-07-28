@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>文稿对照 DraftDiff</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <h1>文稿对照 <span class="brand-en">DraftDiff</span></h1>
+      <p class="subtitle">快速发现两篇文章之间的每一处变化</p>
+    </div>
+    <div class="legend">
+      <span class="legend-item add"><i></i>新增</span>
+      <span class="legend-item remove"><i></i>删除</span>
+      <span class="legend-item modify"><i></i>修改</span>
+      <span class="legend-item move"><i></i>位置变化</span>
+      <span class="legend-item same"><i></i>相同</span>
+    </div>
+  </header>
+
+  <main class="workspace">
+    <aside class="article-list">
+      <div class="list-header">
+        <h2>文章库</h2>
+        <button id="new-article-btn" class="btn-icon" title="新增文章">+</button>
+      </div>
+      <div class="list-filters">
+        <input type="search" id="search-input" placeholder="搜索标题、内容、来源...">
+        <select id="category-filter">
+          <option value="">全部分类</option>
+        </select>
+      </div>
+      <div class="list-actions">
+        <button id="bulk-import-btn" class="btn-small">批量导入</button>
+        <button id="refresh-btn" class="btn-small">刷新</button>
+      </div>
+      <ul id="articles-ul" class="articles-ul">
+        <li class="empty-hint">加载中...</li>
+      </ul>
+    </aside>
+
+    <section class="editor reference">
+      <div class="editor-header">
+        <h2>参考文章</h2>
+        <div class="editor-meta">
+          <span id="ref-word-count" class="word-count">0 字</span>
+        </div>
+      </div>
+      <div class="editor-body">
+        <input type="text" id="ref-title" class="article-title" placeholder="文章标题">
+        <textarea id="ref-content" class="article-content" placeholder="从左侧选择一篇文章，或直接粘贴内容...&#10;&#10;提示：点击左侧列表中的文章，会自动加载到此处。"></textarea>
+      </div>
+    </section>
+
+    <section class="editor target">
+      <div class="editor-header">
+        <h2>待对比文章</h2>
+        <div class="editor-meta">
+          <span id="target-word-count" class="word-count">0 字</span>
+          <label class="file-upload-btn">
+            <input type="file" id="file-input" accept=".txt,.md,.markdown" hidden>
+            <span>📁 上传</span>
+          </label>
+        </div>
+      </div>
+      <div class="editor-body">
+        <input type="text" id="target-title" class="article-title" placeholder="文章标题">
+        <textarea id="target-content" class="article-content" placeholder="粘贴待对比文章内容，或点击右上角上传 TXT / Markdown 文件..."></textarea>
+      </div>
+    </section>
+  </main>
+
+  <div class="actions-bar">
+    <div class="mode-selector">
+      <span class="mode-label">对比方式：</span>
+      <label class="radio-pill">
+        <input type="radio" name="mode" value="char">
+        <span>逐字</span>
+      </label>
+      <label class="radio-pill">
+        <input type="radio" name="mode" value="sentence" checked>
+        <span>逐句</span>
+      </label>
+      <label class="radio-pill">
+        <input type="radio" name="mode" value="paragraph">
+        <span>逐段</span>
+      </label>
+    </div>
+    <div class="action-buttons">
+      <button id="compare-btn" class="btn btn-primary">开始对比</button>
+      <button id="swap-btn" class="btn">交换文章</button>
+      <button id="clear-btn" class="btn">清空内容</button>
+      <button id="copy-btn" class="btn">复制结果</button>
+      <button id="save-btn" class="btn">保存结果</button>
+    </div>
+  </div>
+
+  <div id="stats" class="stats hidden">
+    <div class="stat-card">
+      <div class="stat-label">文本相似度</div>
+      <div class="stat-value" id="stat-similarity">-</div>
+      <div class="stat-hint">内容重合程度</div>
+    </div>
+    <div class="stat-card stat-add">
+      <div class="stat-label">新增</div>
+      <div class="stat-value" id="stat-added">-</div>
+    </div>
+    <div class="stat-card stat-remove">
+      <div class="stat-label">删除</div>
+      <div class="stat-value" id="stat-removed">-</div>
+    </div>
+    <div class="stat-card stat-modify">
+      <div class="stat-label">修改</div>
+      <div class="stat-value" id="stat-modified">-</div>
+    </div>
+    <div class="stat-card stat-move">
+      <div class="stat-label">位置变化</div>
+      <div class="stat-value" id="stat-moved">-</div>
+    </div>
+    <div class="stat-card stat-same">
+      <div class="stat-label">相同</div>
+      <div class="stat-value" id="stat-same">-</div>
+    </div>
+  </div>
+
+  <section id="result-section" class="result-section hidden">
+    <div class="result-header">
+      <h2>差异对比结果</h2>
+      <div class="result-mode" id="result-mode">逐句对比</div>
+    </div>
+    <div id="result" class="result"></div>
+  </section>
+
+  <footer class="footer">
+    <p>文稿对照 DraftDiff · 基于 Cloudflare Pages + D1 SQLite</p>
+  </footer>
+
+  <!-- 新增/编辑文章弹窗 -->
+  <div id="modal-article" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="modal-article-title">新增文章</h2>
+        <button class="modal-close" data-close>×</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="edit-id">
+        <label>标题 <span class="required">*</span><input type="text" id="edit-title" placeholder="文章标题"></label>
+        <label>来源 <input type="text" id="edit-source" placeholder="例如：公众号 / 知乎 / 自己写"></label>
+        <label>分类 <input type="text" id="edit-category" placeholder="例如：技术 / 生活 / 工作" list="category-suggestions"><datalist id="category-suggestions"></datalist></label>
+        <label>标签（逗号分隔）<input type="text" id="edit-tags" placeholder="例如：AI, 写作, 教程"></label>
+        <label>内容 <span class="required">*</span><textarea id="edit-content" rows="14" placeholder="在此粘贴或输入文章内容..."></textarea></label>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" data-close>取消</button>
+        <button id="article-save-btn" class="btn btn-primary">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 批量导入弹窗 -->
+  <div id="modal-bulk" class="modal hidden">
+    <div class="modal-content modal-large">
+      <div class="modal-header">
+        <h2>批量导入文章</h2>
+        <button class="modal-close" data-close>×</button>
+      </div>
+      <div class="modal-body">
+        <p class="hint">用 <code>---</code> 分隔每篇文章，每篇可用 <code>title:</code>、<code>source:</code>、<code>category:</code>、<code>tags:</code> 指定元数据（可省略）。</p>
+        <pre class="hint-example">title: 企业微信 AI 助手建设方案
+source: 内部
+category: 技术
+tags: AI, 企业微信
+这是文章内容...
+可以多行。
+
+---
+title: 第二篇文章
+直接写内容，标题默认为"未命名"。</pre>
+        <textarea id="bulk-text" rows="16" placeholder="title: 我的文章&#10;source: 来源&#10;category: 分类&#10;tags: 标签1,标签2&#10;文章内容...&#10;&#10;---&#10;&#10;title: 第二篇..."></textarea>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" data-close>取消</button>
+        <button id="bulk-import-btn-confirm" class="btn btn-primary">开始导入</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script type="module" src="/js/app.js"></script>
+</body>
+</html>

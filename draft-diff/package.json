@@ -1,0 +1,16 @@
+{
+  "name": "draft-diff",
+  "version": "1.0.0",
+  "description": "文稿对照 - 文章版本对比工具",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler pages dev public",
+    "deploy": "wrangler pages deploy public",
+    "db:create": "wrangler d1 create draft-diff-db",
+    "db:init": "wrangler d1 execute draft-diff-db --file=./schema.sql",
+    "db:init:local": "wrangler d1 execute draft-diff-db --local --file=./schema.sql"
+  },
+  "devDependencies": {
+    "wrangler": "^3.78.0"
+  }
+}
