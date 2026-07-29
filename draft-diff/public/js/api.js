@@ -13,13 +13,22 @@ async function request(path, options = {}) {
   }
   try {
     const res = await fetch(url, opts);
-    const data = await res.json().catch(() => ({ success: false, error: '解析失败' }));
+    const text = await res.text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      throw new Error(`服务器返回异常响应 (HTTP ${res.status})，可能服务未启动`);
+    }
     if (!res.ok || data.success === false) {
       throw new Error(data.error || `HTTP ${res.status}`);
     }
     return data;
   } catch (e) {
-    throw new Error('请求失败: ' + e.message);
+    if (e.message && e.message.startsWith('服务器返回异常')) {
+      throw e;
+    }
+    throw new Error('网络连接失败，请检查服务是否启动');
   }
 }
 
